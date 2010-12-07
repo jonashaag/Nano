@@ -1,3 +1,9 @@
+"""
+Nano -- Web Framework in less than 100 LOC
+
+Copyright 2010, Jonas Haag <jonas@lophus.org>
+License: 2-clause BSD
+"""
 import os
 import sys
 import re
