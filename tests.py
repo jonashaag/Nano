@@ -54,7 +54,7 @@ class TestRouting(Test):
 class Test404(Test):
     def assert_404(self):
         self.assert_obj_eq(self.call_app(), status='404 Go Away', body=[],
-                           headers={'Content-Length' : 0})
+                           headers={'Content-Length' : '0'})
 
     def test_without_routes(self):
         self.assert_404()
@@ -67,13 +67,21 @@ class TestExceptionInCallback(Test):
     def setup(self):
         def callback1(environ): raise HttpError('123 blabla')
         def callback2(environ): raise TypeError('Blabla')
+        def callback3(environ): raise HttpError('42 foo', 'body 42')
         self.app.route('/HttpError')(callback1)
         self.app.route('/TypeError')(callback2)
+        self.app.route('/withbody')(callback3)
+
+    def _test_withbody(self):
+        self.assert_obj_eq(self.call_app('/withbody'),
+                           status='42 foo', body=['body 42'],
+                           headers={'Content-Length' : '7', 'Content-Type' : 'text/plain'})
 
     def test_nodebug(self):
         for url, status in [('/HttpError', '123 blabla'), ('/TypeError', '500 OH NOEZ')]:
             self.assert_obj_eq(self.call_app(url), status=status, body=[],
-                headers={'Content-Type' : 'text/plain', 'Content-Length' : '0'})
+                headers={'Content-Length' : '0'})
+        self._test_withbody()
 
     def test_debug(self):
         self.app.debug = True
@@ -83,6 +91,7 @@ class TestExceptionInCallback(Test):
         self.assert_contains(self.call_app('/TypeError').body[0],
                              'Traceback (most recent call last)',
                              'TypeError: Blabla')
+        self._test_withbody()
 
 class TestReturnTypes(Test):
     tests = [

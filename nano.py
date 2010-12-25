@@ -13,7 +13,7 @@ import traceback
 HTTP_REASONS = {200: 'Here You Go', 404: 'Go Away', 500: 'OH NOEZ'}
 
 def format_status(status):
-    if not isinstance(status, str):
+    if isinstance(status, int):
         status = '%d %s' % (status, HTTP_REASONS.get(status, '<reason>'))
     return status
 
@@ -21,17 +21,92 @@ def isetdefault(dct, key, value):
     dct.setdefault(key.title(), str(value))
 
 class HttpError(Exception):
-    def __init__(self, status, *args):
-        Exception.__init__(self, status, *args)
+    """
+    Exception to immediately jump out of any view and respond with the status
+    code passed as argument.
+
+    If the status code is `500` and debug mode is
+    turned on in the Nano application, the exception traceback will be printed.
+    The full traceback will be sent to the browser if debug mode is turned on
+    (independent of the status code).
+
+    Parameters:
+        `exc_info` (optional)
+            A triple `(exc_type, exc_value, exc_traceback)` (as returned from
+            :func:`sys.exc_info`).
+        `body`
+            The body to be sent to the client
+
+    Example::
+
+        @app.route('/download/:name:/')
+        def download(name):
+            if not os.path.exists(name):
+                raise HttpError(404, 'File Not Found')
+            return open(name)
+    """
+    def __init__(self, status, body=None, exc_info=None):
+        Exception.__init__(self)
+        self.status = status
+        self.body = body
+        self.exc_info = exc_info
+
+    def get_exc_info(self):
+        return self.exc_info or sys.exc_info()
+
+    def get_body(self, full_traceback):
+        if self.body is not None:
+            return self.body
+        if full_traceback:
+            assert self.get_exc_info() != (None, None, None)
+            return traceback.format_exception(*self.get_exc_info())
+        return ''
 
 class NanoApplication(object):
-    charset = 'utf-8'
+    """
+    Central Nano object that functions as WSGI application passed to the WSGI
+    server, e.g.::
 
-    def __init__(self, debug=False):
+        import bjoern
+        import nano
+
+        app = nano.NanoApplication()
+        # ... loads of code ...
+
+        if __name__ == '__main__':
+            bjoern.run(app, '127.0.0.1', 8080)
+
+    Parameters:
+        `debug`
+            If a Python exception gets raised in your code, this flag decides
+            whether a full traceback shall be shown in the browser
+        `charset`
+            Sets the charset used to encode unicode strings returned by a view
+    """
+    def __init__(self, debug=False, charset='utf-8'):
         self.routes = []
         self.debug = debug
+        self.charset = charset
 
     def route(self, pattern):
+        """
+        Decorator to map a URL pattern to a view function.
+
+        The pattern is interpreted as regular expression; named group matches
+        will be passed to the view function as keyword arguments.
+
+        ``:foo:`` may be used as shortcut to ``(?P<foo>[^/]+)``, i.e. a named
+        wildcard matching any characters except a slash.
+
+        Keep in mind that arguments passed to the decorated view function are
+        *always strings*, i.e. *no type conversions* are done at any time.
+
+        Example::
+
+            @app.route('/post/:slug:/')
+            def view_page(slug):
+                return get_post_by_slug(slug)
+        """
         pattern = re.sub(':([a-z0-9_]+):', '(?P<\g<1>>[^/]+)', pattern)
         pattern = re.compile('^%s$' % pattern)
         def decorator(callback):
@@ -43,7 +118,8 @@ class NanoApplication(object):
         callback, kwargs = self.dispatch(environ)
 
         if callback is None:
-            start_response(format_status(404), [('Content-Length', 0)])
+            # No route matched the requested URL. HTTP 404.
+            start_response(format_status(404), [('Content-Length', '0')])
             return []
 
         try:
@@ -52,13 +128,13 @@ class NanoApplication(object):
             except Exception, e:
                 if isinstance(e, HttpError):
                     raise
-                raise HttpError, HttpError(500, sys.exc_info())
-        except HttpError, e:
-            status = e.args[0]
+                raise HttpError, HttpError(500, exc_info=sys.exc_info())
+        except HttpError, http_err:
+            status = http_err.status
             headers = {}
-            exc_info = e.args[1] if len(e.args) > 1 else sys.exc_info()
-            body = traceback.format_exception(*exc_info) if self.debug else ''
-            traceback.print_exception(*exc_info)
+            body = http_err.get_body(self.debug)
+            if status == 500:
+                traceback.print_exception(*http_err.get_exc_info())
         else:
             if isinstance(retval, tuple) and len(retval) == 3:
                 status, headers, body = retval
@@ -66,28 +142,32 @@ class NanoApplication(object):
             else:
                 status, headers, body = 200, {}, retval
 
+        if not body and isinstance(body, (list, tuple, bytes, unicode)):
+            # Empty body, return early.
+            headers['Content-Length'] = '0'
+            start_response(format_status(status), headers.items())
+            return []
+
         if isinstance(body, (list, tuple)):
-            if not body:
-                body = ''
-            else:
-                assert isinstance(body[0], (bytes, unicode))
-                body = body[0][0:0].join(body)
+            # Join a list of strings into one fat string - probably less
+            # effort to handle on server site and does not use more space
+            # anyway (in fact it saves some bytes).
+            body = body[0][0:0].join(body)
 
         if isinstance(body, (bytes, unicode)):
+            assert body
             if isinstance(body, unicode):
                 body = body.encode(self.charset)
             isetdefault(headers, 'Content-Length', len(body))
             isetdefault(headers, 'Content-Type', 'text/plain')
-            body = [body] if body else []
+            body = [body]
         elif isinstance(body, file):
             isetdefault(headers, 'Content-Length', os.path.getsize(body.name))
             mime, _ = mimetypes.guess_type(body.name)
             if mime is not None:
                 isetdefault(headers, 'Content-Type', mime)
 
-        if isinstance(status, int):
-            status = format_status(status)
-        start_response(status, headers.items())
+        start_response(format_status(status), headers.items())
         return body
 
     def dispatch(self, environ):
