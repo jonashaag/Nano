@@ -7,14 +7,13 @@ License: 2-clause BSD
 import os
 import sys
 import re
-import mimetypes
 import traceback
-
-HTTP_REASONS = {200: 'Here You Go', 404: 'Go Away', 500: 'OH NOEZ'}
+import mimetypes
+import httplib
 
 def format_status(status):
     if isinstance(status, int):
-        status = '%d %s' % (status, HTTP_REASONS.get(status, '<reason>'))
+        status = '%d %s' % (status, httplib.responses.get(status, '<reason>'))
     return status
 
 def isetdefault(dct, key, value):
@@ -31,11 +30,14 @@ class HttpError(Exception):
     (independent of the status code).
 
     Parameters:
+        `status`
+            The HTTP status code to respond with. Either a number or a
+            `code reason` string, e.g. `404` or `404 Not Found`.
         `exc_info` (optional)
             A triple `(exc_type, exc_value, exc_traceback)` (as returned from
             :func:`sys.exc_info`).
-        `body`
-            The body to be sent to the client
+        `body` (optional)
+            The body to be sent to the client.
 
     Example::
 

@@ -53,7 +53,7 @@ class TestRouting(Test):
 
 class Test404(Test):
     def assert_404(self):
-        self.assert_obj_eq(self.call_app(), status='404 Go Away', body=[],
+        self.assert_obj_eq(self.call_app(), status='404 Not Found', body=[],
                            headers={'Content-Length' : '0'})
 
     def test_without_routes(self):
@@ -78,7 +78,7 @@ class TestExceptionInCallback(Test):
                            headers={'Content-Length' : '7', 'Content-Type' : 'text/plain'})
 
     def test_nodebug(self):
-        for url, status in [('/HttpError', '123 blabla'), ('/TypeError', '500 OH NOEZ')]:
+        for url, status in [('/HttpError', '123 blabla'), ('/TypeError', '500 Internal Server Error')]:
             self.assert_obj_eq(self.call_app(url), status=status, body=[],
                 headers={'Content-Length' : '0'})
         self._test_withbody()
@@ -98,7 +98,7 @@ class TestReturnTypes(Test):
         'Hello World', {
             'body' : ['Hello World'],
             'headers' : {'Content-Length' : '11', 'Content-Type' : 'text/plain'},
-            'status' : '200 Here You Go'
+            'status' : '200 OK'
         },
         ('123 foo', {'a' : 1}, ['Hello World']), {
             'body' : ['Hello World'],
@@ -109,7 +109,7 @@ class TestReturnTypes(Test):
         (200, [('b', 2)], [u'Hellö ', 'World']), {
             'body' : ['Hellö World'],
             'headers' : {'Content-Length' : '12', 'Content-Type' : 'text/plain', 'b' : 2},
-            'status' : '200 Here You Go'
+            'status' : '200 OK'
         },
         (123, {'Content-Length' : '42'}, u'blööök'), {
             'body' : [u'blööök'.encode('utf-8')],
@@ -134,7 +134,7 @@ class TestReturnTypes(Test):
         iterator = iter(['foo', 'bar'])
         callback = lambda env: iterator
         self.route(callback)
-        self.assert_obj_eq(self.call_app(), headers={}, status='200 Here You Go')
+        self.assert_obj_eq(self.call_app(), headers={}, status='200 OK')
         self.assert_(self.call_app().body is iterator)
 
     def test_file(self):
