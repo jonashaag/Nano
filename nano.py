@@ -106,7 +106,7 @@ class NanoApplication(object):
         Example::
 
             @app.route('/post/:slug:/')
-            def view_page(slug):
+            def view_page(environ, slug):
                 return get_post_by_slug(slug)
         """
         pattern = re.sub(':([a-z0-9_]+):', '(?P<\g<1>>[^/]+)', pattern)
