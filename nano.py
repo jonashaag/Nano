@@ -85,10 +85,11 @@ class NanoApplication(object):
         `charset`
             Sets the charset used to encode unicode strings returned by a view
     """
-    def __init__(self, debug=False, charset='utf-8'):
+    def __init__(self, debug=False, charset='utf-8', chunksize=8*1024):
         self.routes = []
         self.debug = debug
         self.charset = charset
+        self.chunksize = chunksize
 
     def route(self, pattern):
         """
@@ -168,6 +169,7 @@ class NanoApplication(object):
             mime, _ = mimetypes.guess_type(body.name)
             if mime is not None:
                 isetdefault(headers, 'Content-Type', mime)
+            body = self.get_filewrapper(environ)(body)
 
         start_response(format_status(status), headers.items())
         return body
@@ -179,3 +181,7 @@ class NanoApplication(object):
             if match is not None:
                 return callback, match.groupdict()
         return None, None
+
+    def get_filewrapper(self, environ):
+        return environ.get('wsgi.file_wrapper',
+                           (lambda f: iter(lambda: f.read(self.chunksize), '')))
