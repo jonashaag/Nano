@@ -48,7 +48,7 @@ class HttpError(Exception):
             return open(name)
     """
     def __init__(self, status, body=None, exc_info=None):
-        Exception.__init__(self)
+        Exception.__init__(self, status)
         self.status = status
         self.body = body
         self.exc_info = exc_info
