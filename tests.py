@@ -21,15 +21,21 @@ class Test(unittest.TestCase):
         for attr, value in attrs.iteritems():
             self.assert_eq(getattr(obj, attr), value)
 
+    def assert_isinstance(self, *args, **kwargs):
+        return self.assertIsInstance(*args, **kwargs)
+
     def route(self, callback):
         self.app.route('/')(callback)
         return self
 
-    def call_app(self, url='/'):
+    def call_app(self, url='/', environ=None):
         class result: pass
         def start_response(status, headers):
             result.status, result.headers = status, dict(headers)
-        result.body = self.app({'PATH_INFO' : url}, start_response)
+        if environ is None:
+            environ = {}
+        environ['PATH_INFO'] = url
+        result.body = self.app(environ, start_response)
         return result
 
 class TestRouting(Test):
@@ -142,12 +148,18 @@ class TestReturnTypes(Test):
         with open(fname, 'w') as fd:
             fd.write('body { color: #42 }')
         try:
-            fd = open(fname)
-            callback = lambda env: fd
-            self.assert_(self.route(callback).call_app().body is fd)
-            self.assert_eq(self.call_app().headers,
-                           {'Content-Length' : '19',
-                            'Content-Type' : 'text/css'})
+            app = self.route(lambda env: open(fname)).call_app
+            class MockFileWrapper(Exception):
+                pass
+            for env, tp in [
+                ({'wsgi.file_wrapper' : MockFileWrapper}, MockFileWrapper),
+                ({}, type(iter(lambda: x, 42)))
+            ]:
+                result = app(environ=env)
+                self.assert_isinstance(result.body, tp)
+                self.assert_eq(result.headers,
+                               {'Content-Length' : '19',
+                                'Content-Type' : 'text/css'})
         finally:
             from os import remove; remove(fname)
 
