@@ -124,6 +124,45 @@ class NanoApplication(object):
             return callback
         return decorator
 
+    def build_url(self, callback_name, **wildcards):
+        """
+        The routing counterpart: Returns a URL matching a pattern using the
+        wildcards substitutions passed as keyword arguments.
+
+        `callback_name` is the name of the route target whose route should be
+        used to generate the URL. Substitution values must be strings. Example::
+
+            @app.route('/:foo:/:bar:/')
+            def foobar(foo, bar):
+                ...
+
+            app.build_url('foobar', foo='hello', bar='world')
+
+        The following assumptions are made about your routing configuration:
+
+        1. Routes contain nothing but Nano-style wildcards (``:foo:``) and
+           named regular expression groups (``(?P<name>pattern)``).
+        2. Route targets must be function-like, more precisely, they must have a
+          ``__name__`` attribute that is unique within all route targets.
+
+        :raises ValueError:
+            If the given wildcard substitutions didn't match the route pattern's
+            wildcards, i.e. too few, too many or invalid substitutions were passed
+        """
+        for pattern, callback in self.routes:
+            if callback.__name__ != callback_name:
+                continue
+            url = pattern.pattern[1:-1]
+            for name, value in wildcards.items():
+                if not isinstance(value, basestring):
+                    raise TypeError("Wildcard values must be strings")
+                url, nsubs = re.subn('\(\?P<%s>.*?\)' % name, value, url)
+                if nsubs:
+                    del wildcards[name]
+            if wildcards or not pattern.match(url):
+                raise ValueError("Wildcard substitutions didn't match pattern")
+            return url
+
     def __call__(self, environ, start_response):
         callback, kwargs = self.dispatch(environ)
 

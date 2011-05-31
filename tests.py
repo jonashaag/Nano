@@ -11,7 +11,7 @@ class Test(unittest.TestCase):
         pass
 
     def assert_eq(self, *args, **kwargs):
-        return self.assertEqual(*args, **kwargs)
+        self.assertEqual(*args, **kwargs)
 
     def assert_contains(self, haystack, *needles):
         for needle in needles:
@@ -22,7 +22,10 @@ class Test(unittest.TestCase):
             self.assert_eq(getattr(obj, attr), value)
 
     def assert_isinstance(self, *args, **kwargs):
-        return self.assertIsInstance(*args, **kwargs)
+        self.assertIsInstance(*args, **kwargs)
+
+    def assert_raises_regexp(self, *args, **kwargs):
+        self.assertRaisesRegexp(*args, **kwargs)
 
     def route(self, callback):
         self.app.route('/')(callback)
@@ -39,23 +42,47 @@ class Test(unittest.TestCase):
         return result
 
 class TestRouting(Test):
+    def _mock(self, n, _cache={}):
+        if n not in _cache:
+            _cache[n] = type('c%d' % n, (), {})
+        return _cache[n]
+
     def setup(self):
-        self.app.route('/')(1)
-        self.app.route('/a/')(2)
-        self.app.route('/:a/')(3)
-        self.app.route('/:a:/')(4)
-        self.app.route('/:a1b2:/[0-9]+/')(6)
-        self.app.route('/:a:/(?P<b>[^\d]+)/')(5)
+        self.app.route('/')(self._mock(1))
+        self.app.route('/a/')(self._mock(2))
+        self.app.route('/:a/')(self._mock(3))
+        self.app.route('/:a:/')(self._mock(4))
+        self.app.route('/:a1b2:/[0-9]+/')(self._mock(6))
+        self.app.route('/:a:/(?P<b>[^\d]+)/')(self._mock(5))
 
     def test_dispatch(self):
         def dispatch(path): return self.app.dispatch({'PATH_INFO' : path})
-        self.assert_eq(dispatch('/'), (1, {}))
-        self.assert_eq(dispatch('/a/'), (2, {}))
-        self.assert_eq(dispatch('/:a/'), (3, {}))
-        self.assert_eq(dispatch('/foo/'), (4, {'a' : 'foo'}))
-        self.assert_eq(dispatch('/foo/bar/'), (5, {'a' : 'foo', 'b' : 'bar'}))
+        self.assert_eq(dispatch('/'), (self._mock(1), {}))
+        self.assert_eq(dispatch('/a/'), (self._mock(2), {}))
+        self.assert_eq(dispatch('/:a/'), (self._mock(3), {}))
+        self.assert_eq(dispatch('/foo/'), (self._mock(4), {'a' : 'foo'}))
+        self.assert_eq(dispatch('/foo/bar/'), (self._mock(5), {'a' : 'foo', 'b' : 'bar'}))
         self.assert_eq(dispatch('/foo/bar'), (None, None))
-        self.assert_eq(dispatch('/foo/0123/'), (6, {'a1b2' : 'foo'}))
+        self.assert_eq(dispatch('/foo/0123/'), (self._mock(6), {'a1b2' : 'foo'}))
+
+    def test_build_url(self):
+        self.assert_eq(self.app.build_url('c1'), '/')
+        self.assert_eq(self.app.build_url('c2'), '/a/')
+        self.assert_eq(self.app.build_url('c3'), '/:a/')
+        self.assert_eq(self.app.build_url('c4', a='42'), '/42/')
+        self.assert_eq(self.app.build_url('c5', a='foo', b='asd'), '/foo/asd/')
+
+        self.assert_raises_regexp(TypeError, "Wildcard values must be strings",
+                                  self.app.build_url, 'c3', a=42)
+
+        self.assert_raises_regexp(ValueError, "Wildcard substitutions didn't",
+                                  self.app.build_url, 'c1', a='1')
+        self.assert_raises_regexp(ValueError, "Wildcard substitutions didn't",
+                                  self.app.build_url, 'c3', a='1', b='2')
+        self.assert_raises_regexp(ValueError, "Wildcard substitutions didn't",
+                                  self.app.build_url, 'c3', b='2')
+        self.assert_raises_regexp(ValueError, "Wildcard substitutions didn't",
+                                  self.app.build_url, 'c5', a='foo', b='123')
 
 class Test404(Test):
     def assert_404(self):
