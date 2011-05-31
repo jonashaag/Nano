@@ -84,12 +84,19 @@ class NanoApplication(object):
             whether a full traceback shall be shown in the browser
         `charset`
             Sets the charset used to encode unicode strings returned by a view
+        `chunksize`
+            When using the built-in file wrapper, sets how much data should be
+            read and sent per iteration.
+        `default_content_type`
+            Sets what should be used as default `Content-Type` HTTP header
     """
-    def __init__(self, debug=False, charset='utf-8', chunksize=8*1024):
+    def __init__(self, debug=False, charset='utf-8', chunksize=8*1024,
+                       default_content_type='text/plain'):
         self.routes = []
         self.debug = debug
         self.charset = charset
         self.chunksize = chunksize
+        self.default_content_type = default_content_type
 
     def route(self, pattern):
         """
@@ -162,7 +169,7 @@ class NanoApplication(object):
             if isinstance(body, unicode):
                 body = body.encode(self.charset)
             isetdefault(headers, 'Content-Length', len(body))
-            isetdefault(headers, 'Content-Type', 'text/plain')
+            isetdefault(headers, 'Content-Type', self.default_content_type)
             body = [body]
         elif isinstance(body, file):
             isetdefault(headers, 'Content-Length', os.path.getsize(body.name))
