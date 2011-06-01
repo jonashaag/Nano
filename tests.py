@@ -126,6 +126,12 @@ class TestExceptionInCallback(Test):
                              'TypeError: Blabla')
         self._test_withbody()
 
+    def test_debug_with_custom_default_content_type(self):
+        self.app.debug = True
+        self.app.default_content_type = 'foo/bar'
+        self.assert_eq(self.call_app('/HttpError').headers['Content-Type'],
+                       'text/plain')
+
 class TestReturnTypes(Test):
     tests = [
         'Hello World', {

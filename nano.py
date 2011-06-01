@@ -208,7 +208,8 @@ class NanoApplication(object):
             if isinstance(body, unicode):
                 body = body.encode(self.charset)
             isetdefault(headers, 'Content-Length', len(body))
-            isetdefault(headers, 'Content-Type', self.default_content_type)
+            isetdefault(headers, 'Content-Type',
+                        'text/plain' if self.debug else self.default_content_type)
             body = [body]
         elif isinstance(body, file):
             isetdefault(headers, 'Content-Length', os.path.getsize(body.name))
