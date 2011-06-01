@@ -173,6 +173,7 @@ class TestReturnTypes(Test):
         self.route(callback)
         self.assert_obj_eq(self.call_app(), **self.tests[-1])
         callback.app_retval = 'Hello World'
+        self.app.debug = True
         self.assert_obj_eq(self.call_app(), body=['Hello World'], status='200 OK',
                            headers={'Content-Length' : '11', 'Content-Type' : 'hello/world'})
 

@@ -58,11 +58,11 @@ class HttpError(Exception):
 
     def get_body(self, full_traceback):
         if self.body is not None:
-            return self.body
+            return False, self.body
         if full_traceback:
             assert self.get_exc_info() != (None, None, None)
-            return traceback.format_exception(*self.get_exc_info())
-        return ''
+            return True, traceback.format_exception(*self.get_exc_info())
+        return False, ''
 
 class NanoApplication(object):
     """
@@ -181,7 +181,9 @@ class NanoApplication(object):
         except HttpError, http_err:
             status = http_err.status
             headers = {}
-            body = http_err.get_body(self.debug)
+            is_traceback, body = http_err.get_body(self.debug)
+            if is_traceback:
+                headers['Content-Type'] = 'text/plain'
             if status == 500:
                 traceback.print_exception(*http_err.get_exc_info())
         else:
@@ -208,8 +210,7 @@ class NanoApplication(object):
             if isinstance(body, unicode):
                 body = body.encode(self.charset)
             isetdefault(headers, 'Content-Length', len(body))
-            isetdefault(headers, 'Content-Type',
-                        'text/plain' if self.debug else self.default_content_type)
+            isetdefault(headers, 'Content-Type', self.default_content_type)
             body = [body]
         elif isinstance(body, file):
             isetdefault(headers, 'Content-Length', os.path.getsize(body.name))
