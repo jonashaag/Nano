@@ -54,6 +54,7 @@ class TestRouting(Test):
         self.app.route('/:a:/')(self._mock(4))
         self.app.route('/:a1b2:/[0-9]+/')(self._mock(6))
         self.app.route('/:a:/(?P<b>[^\d]+)/')(self._mock(5))
+        self.app.route('/(?P<a>.*)/')(self._mock(7))
 
     def test_dispatch(self):
         def dispatch(path): return self.app.dispatch({'PATH_INFO' : path})
@@ -85,6 +86,8 @@ class TestRouting(Test):
                                   self.app.build_url, 'c3', b='2')
         self.assert_raises_regexp(ValueError, "Wildcard substitutions didn't",
                                   self.app.build_url, 'c5', a='foo', b='123')
+        self.assert_raises_regexp(ValueError, "Wildcard substitutions didn't",
+                                  self.app.build_url, 'c7')
 
 class Test404(Test):
     def assert_404(self):

@@ -149,6 +149,7 @@ class NanoApplication(object):
             If the given wildcard substitutions didn't match the route pattern's
             wildcards, i.e. too few, too many or invalid substitutions were passed
         """
+        named_group_re = '\(\?P<%s>.*?\)'
         for pattern, callback in self.routes:
             if callback.__name__ != callback_name:
                 continue
@@ -157,10 +158,11 @@ class NanoApplication(object):
                 if not isinstance(value, basestring):
                     raise TypeError("Wildcard values must be strings "
                                     "(got %r object instead)" % type(value))
-                url, nsubs = re.subn('\(\?P<%s>.*?\)' % name, value, url)
+                url, nsubs = re.subn(named_group_re % name, value, url)
                 if nsubs:
                     del wildcards[name]
-            if wildcards or not pattern.match(url):
+            if wildcards or not pattern.match(url) or \
+               re.search(named_group_re % '.+?', url):
                 raise ValueError("Wildcard substitutions didn't match pattern")
             return url
 
