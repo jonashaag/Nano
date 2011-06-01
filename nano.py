@@ -155,7 +155,8 @@ class NanoApplication(object):
             url = pattern.pattern[1:-1]
             for name, value in wildcards.items():
                 if not isinstance(value, basestring):
-                    raise TypeError("Wildcard values must be strings")
+                    raise TypeError("Wildcard values must be strings "
+                                    "(got %r object instead)" % type(value))
                 url, nsubs = re.subn('\(\?P<%s>.*?\)' % name, value, url)
                 if nsubs:
                     del wildcards[name]

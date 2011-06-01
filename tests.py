@@ -72,8 +72,10 @@ class TestRouting(Test):
         self.assert_eq(self.app.build_url('c4', a='42'), '/42/')
         self.assert_eq(self.app.build_url('c5', a='foo', b='asd'), '/foo/asd/')
 
-        self.assert_raises_regexp(TypeError, "Wildcard values must be strings",
-                                  self.app.build_url, 'c3', a=42)
+        self.assert_raises_regexp(
+            TypeError, "Wildcard values must be strings \(got <type 'int'> object instead\)",
+            self.app.build_url, 'c3', a=42
+        )
 
         self.assert_raises_regexp(ValueError, "Wildcard substitutions didn't",
                                   self.app.build_url, 'c1', a='1')
