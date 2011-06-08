@@ -1,5 +1,5 @@
 """
-Nano -- Web Framework in less than 100 LOC
+Nano -- Web Framework in about 100 LOC
 
 Copyright 2010, Jonas Haag <jonas@lophus.org>
 License: 2-clause BSD
@@ -204,7 +204,7 @@ class NanoApplication(object):
 
         if isinstance(body, (list, tuple)):
             # Join a list of strings into one fat string - probably less
-            # effort to handle on server site and does not use more space
+            # effort to handle on server side and does not use more space
             # anyway (in fact it saves some bytes).
             body = body[0][0:0].join(body)
 
