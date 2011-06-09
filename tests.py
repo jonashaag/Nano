@@ -73,6 +73,10 @@ class TestRouting(Test):
         self.assert_eq(self.app.build_url('c4', a='42'), '/42/')
         self.assert_eq(self.app.build_url('c5', a='foo', b='asd'), '/foo/asd/')
 
+        # Substitutes should be escaped:
+        self.assert_eq(self.app.build_url('c4', a=' äöß®'),
+                       '/%20%C3%A4%C3%B6%C3%9F%C2%AE/')
+
         self.assert_raises_regexp(
             TypeError, "Wildcard values must be strings \(got <type 'int'> object instead\)",
             self.app.build_url, 'c3', a=42

@@ -9,6 +9,7 @@ import sys
 import re
 import traceback
 import mimetypes
+import urllib
 import httplib
 
 def format_status(status):
@@ -158,7 +159,7 @@ class NanoApplication(object):
                 if not isinstance(value, basestring):
                     raise TypeError("Wildcard values must be strings "
                                     "(got %r object instead)" % type(value))
-                url, nsubs = re.subn(named_group_re % name, value, url)
+                url, nsubs = re.subn(named_group_re % name, urllib.quote(value), url)
                 if nsubs:
                     del wildcards[name]
             if wildcards or not pattern.match(url) or \
