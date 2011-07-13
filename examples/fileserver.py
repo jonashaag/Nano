@@ -5,7 +5,7 @@ app = NanoApplication()
 
 @app.route('(?P<path>.+)')
 def view(env, path):
-    path = './' + path
+    path = path.lstrip('/')
     relpath = os.path.join(os.getcwd(), path)
     if os.path.isdir(relpath):
         return index(relpath, path)
@@ -17,7 +17,7 @@ def view(env, path):
 def index(absdir, reldir):
     html = ['<ul>']
     for f in os.listdir(absdir):
-        html.extend(['<li>', '<a href="', os.path.join(reldir, f), '">', f, '</a></li>'])
+        html.extend(['<li>', '<a href="/', os.path.join(reldir, f), '">', f, '</a></li>'])
     html.append('</ul>')
     return 200, {'Content-Type' : 'text/html'}, ''.join(html)
 
