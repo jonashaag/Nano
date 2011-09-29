@@ -1,8 +1,12 @@
 # coding: utf-8
-import unittest
+try:
+    from unittest2 import TestCase, main
+except ImportError:
+    from unittest import TestCase, main
+
 from nano import NanoApplication, HttpError
 
-class Test(unittest.TestCase):
+class Test(TestCase):
     def setUp(self):
         self.app = NanoApplication()
         self.setup()
@@ -214,4 +218,4 @@ class TestReturnTypes(Test):
             from os import remove; remove(fname)
 
 if __name__ == '__main__':
-    unittest.main()
+    main()
