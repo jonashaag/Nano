@@ -14,22 +14,14 @@ class Test(TestCase):
     def setup(self):
         pass
 
-    def assert_eq(self, *args, **kwargs):
-        self.assertEqual(*args, **kwargs)
-
-    def assert_contains(self, haystack, *needles):
+    def assertContains(self, haystack, *needles):
         for needle in needles:
             self.assertIn(needle, haystack)
 
-    def assert_obj_eq(self, obj, **attrs):
+    def assertResponse(self, *args, **attrs):
+        response = self.call_app(*args)
         for attr, value in attrs.iteritems():
-            self.assert_eq(getattr(obj, attr), value)
-
-    def assert_isinstance(self, *args, **kwargs):
-        self.assertIsInstance(*args, **kwargs)
-
-    def assert_raises_regexp(self, *args, **kwargs):
-        self.assertRaisesRegexp(*args, **kwargs)
+            self.assertEqual(getattr(response, attr), value)
 
     def route(self, callback):
         self.app.route('/')(callback)
@@ -62,54 +54,56 @@ class TestRouting(Test):
 
     def test_dispatch(self):
         def dispatch(path): return self.app.dispatch({'PATH_INFO' : path})
-        self.assert_eq(dispatch('/'), (self._mock(1), {}))
-        self.assert_eq(dispatch('/a/'), (self._mock(2), {}))
-        self.assert_eq(dispatch('/:a/'), (self._mock(3), {}))
-        self.assert_eq(dispatch('/foo/'), (self._mock(4), {'a' : 'foo'}))
-        self.assert_eq(dispatch('/foo/bar/'), (self._mock(5), {'a' : 'foo', 'b' : 'bar'}))
-        self.assert_eq(dispatch('/foo/bar'), (None, None))
-        self.assert_eq(dispatch('/foo/0123/'), (self._mock(6), {'a1b2' : 'foo'}))
+        self.assertEqual(dispatch('/'), (self._mock(1), {}))
+        self.assertEqual(dispatch('/a/'), (self._mock(2), {}))
+        self.assertEqual(dispatch('/:a/'), (self._mock(3), {}))
+        self.assertEqual(dispatch('/foo/'), (self._mock(4), {'a' : 'foo'}))
+        self.assertEqual(dispatch('/foo/bar/'), (self._mock(5), {'a' : 'foo', 'b' : 'bar'}))
+        self.assertEqual(dispatch('/foo/bar'), (None, None))
+        self.assertEqual(dispatch('/foo/0123/'), (self._mock(6), {'a1b2' : 'foo'}))
 
     def test_build_url(self):
-        self.assert_eq(self.app.build_url('c1'), '/')
-        self.assert_eq(self.app.build_url('c2'), '/a/')
-        self.assert_eq(self.app.build_url('c3'), '/:a/')
-        self.assert_eq(self.app.build_url('c4', a='42'), '/42/')
-        self.assert_eq(self.app.build_url('c5', a='foo', b='asd'), '/foo/asd/')
+        self.assertEqual(self.app.build_url('c1'), '/')
+        self.assertEqual(self.app.build_url('c2'), '/a/')
+        self.assertEqual(self.app.build_url('c3'), '/:a/')
+        self.assertEqual(self.app.build_url('c4', a='42'), '/42/')
+        self.assertEqual(self.app.build_url('c5', a='foo', b='asd'), '/foo/asd/')
 
         # Substitutes should be escaped:
-        self.assert_eq(self.app.build_url('c4', a=' äöß®'),
+        self.assertEqual(self.app.build_url('c4', a=' äöß®'),
                        '/%20%C3%A4%C3%B6%C3%9F%C2%AE/')
 
-        self.assert_raises_regexp(
+        self.assertRaisesRegexp(
             TypeError, "Wildcard values must be strings \(got <type 'int'> object instead\)",
             self.app.build_url, 'c3', a=42
         )
 
-        self.assert_raises_regexp(ValueError, "Wildcard substitutions didn't",
-                                  self.app.build_url, 'c1', a='1')
-        self.assert_raises_regexp(ValueError, "Wildcard substitutions didn't",
-                                  self.app.build_url, 'c3', a='1', b='2')
-        self.assert_raises_regexp(ValueError, "Wildcard substitutions didn't",
-                                  self.app.build_url, 'c3', b='2')
-        self.assert_raises_regexp(ValueError, "Wildcard substitutions didn't",
-                                  self.app.build_url, 'c5', a='foo', b='123')
-        self.assert_raises_regexp(ValueError, "Wildcard substitutions didn't",
-                                  self.app.build_url, 'c7')
+        for view_name, kwargs in [
+            ('c1', {'a': '1'}),
+            ('c3', {'a': '1', 'b': '2'}),
+            ('c3', {'b': '2'}),
+            ('c5', {'a': 'foo', 'b': '123'}),
+            ('c7', {})
+        ]:
+            self.assertRaisesRegexp(ValueError, "Wildcard substitutions didn't",
+                                  self.app.build_url, view_name, **kwargs)
 
     def test_build_url_with_SCRIPT_NAME(self):
         def callback(env):
             return self.app.build_url('c4', a='bla')
         self.app.route('/Gemüse')(callback)
-        self.assert_eq(
+        self.assertEqual(
             self.call_app('/Gemüse', {'SCRIPT_NAME': '/script-name'}).body[0],
             '/script-name/bla/'
         )
 
 class Test404(Test):
     def assert_404(self):
-        self.assert_obj_eq(self.call_app(), status='404 Not Found', body=[],
-                           headers={'Content-Length' : '0'})
+        self.assertResponse(
+            status='404 Not Found',
+            body=[],
+            headers={'Content-Length' : '0'}
+        )
 
     def test_without_routes(self):
         self.assert_404()
@@ -128,30 +122,29 @@ class TestExceptionInCallback(Test):
         self.app.route('/withbody')(callback3)
 
     def _test_withbody(self):
-        self.assert_obj_eq(self.call_app('/withbody'),
-                           status='42 foo', body=['body 42'],
-                           headers={'Content-Length' : '7', 'Content-Type' : 'text/plain'})
+        self.assertResponse('/withbody', status='42 foo', body=['body 42'],
+            headers={'Content-Length' : '7', 'Content-Type' : 'text/plain'})
 
     def test_nodebug(self):
         for url, status in [('/HttpError', '123 blabla'), ('/TypeError', '500 Internal Server Error')]:
-            self.assert_obj_eq(self.call_app(url), status=status, body=[],
-                headers={'Content-Length' : '0'})
+            self.assertResponse(url, status=status, body=[],
+                                headers={'Content-Length' : '0'})
         self._test_withbody()
 
     def test_debug(self):
         self.app.debug = True
-        self.assert_contains(self.call_app('/HttpError').body[0],
-                             'Traceback (most recent call last)',
-                             'HttpError: 123 blabla')
-        self.assert_contains(self.call_app('/TypeError').body[0],
-                             'Traceback (most recent call last)',
-                             'TypeError: Blabla')
+        self.assertContains(self.call_app('/HttpError').body[0],
+                            'Traceback (most recent call last)',
+                            'HttpError: 123 blabla')
+        self.assertContains(self.call_app('/TypeError').body[0],
+                            'Traceback (most recent call last)',
+                            'TypeError: Blabla')
         self._test_withbody()
 
     def test_debug_with_custom_default_content_type(self):
         self.app.debug = True
         self.app.default_content_type = 'foo/bar'
-        self.assert_eq(self.call_app('/HttpError').headers['Content-Type'],
+        self.assertEqual(self.call_app('/HttpError').headers['Content-Type'],
                        'text/plain')
 
 class TestReturnTypes(Test):
@@ -189,25 +182,27 @@ class TestReturnTypes(Test):
         _iter = iter(self.tests)
         for i in xrange(len(self.tests)/2):
             callback.app_retval = _iter.next()
-            self.assert_obj_eq(self.call_app(), **_iter.next())
+            self.assertResponse(**_iter.next())
 
         self.app = NanoApplication(default_content_type='hello/world')
         self.route(callback)
-        self.assert_obj_eq(self.call_app(), **self.tests[-1])
+        self.assertResponse(**self.tests[-1])
         callback.app_retval = 'Hello World'
         self.app.debug = True
-        self.assert_obj_eq(self.call_app(), body=['Hello World'], status='200 OK',
-                           headers={'Content-Length' : '11', 'Content-Type' : 'hello/world'})
+        self.assertResponse(body=['Hello World'], status='200 OK',
+            headers={'Content-Length' : '11', 'Content-Type' : 'hello/world'})
 
     def test_custom_iterator(self):
         iterator = iter(['foo', 'bar'])
         callback = lambda env: iterator
         self.route(callback)
-        self.assert_obj_eq(self.call_app(), headers={}, status='200 OK')
+        self.assertResponse(headers={}, status='200 OK')
         self.assert_(self.call_app().body is iterator)
 
     def test_file(self):
+        CallableIterator = type(iter(lambda: x, 42))
         fname = '/tmp/nano.css'
+
         with open(fname, 'w') as fd:
             fd.write('body { color: #42 }')
         try:
@@ -216,11 +211,11 @@ class TestReturnTypes(Test):
                 pass
             for env, tp in [
                 ({'wsgi.file_wrapper' : MockFileWrapper}, MockFileWrapper),
-                ({}, type(iter(lambda: x, 42)))
+                ({}, CallableIterator)
             ]:
                 result = app(environ=env)
-                self.assert_isinstance(result.body, tp)
-                self.assert_eq(result.headers,
+                self.assertIsInstance(result.body, tp)
+                self.assertEqual(result.headers,
                                {'Content-Length' : '19',
                                 'Content-Type' : 'text/css'})
         finally:
