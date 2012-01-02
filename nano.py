@@ -11,6 +11,9 @@ import traceback
 import mimetypes
 import urllib
 import httplib
+import threading
+
+local = threading.local()
 
 def format_status(status):
     if isinstance(status, int):
@@ -165,7 +168,7 @@ class NanoApplication(object):
             if wildcards or not pattern.match(url) or \
                re.search(named_group_re % '.+?', url):
                 raise ValueError("Wildcard substitutions didn't match pattern")
-            return url
+            return getattr(local, 'SCRIPT_NAME', '') + url
 
     def __call__(self, environ, start_response):
         callback, kwargs = self.dispatch(environ)
@@ -174,6 +177,8 @@ class NanoApplication(object):
             # No route matched the requested URL. HTTP 404.
             start_response(format_status(404), [('Content-Length', '0')])
             return []
+
+        local.SCRIPT_NAME = environ.get('SCRIPT_NAME', '')
 
         try:
             try:

@@ -97,6 +97,15 @@ class TestRouting(Test):
         self.assert_raises_regexp(ValueError, "Wildcard substitutions didn't",
                                   self.app.build_url, 'c7')
 
+    def test_build_url_with_SCRIPT_NAME(self):
+        def callback(env):
+            return self.app.build_url('c4', a='bla')
+        self.app.route('/Gemüse')(callback)
+        self.assert_eq(
+            self.call_app('/Gemüse', {'SCRIPT_NAME': '/script-name'}).body[0],
+            '/script-name/bla/'
+        )
+
 class Test404(Test):
     def assert_404(self):
         self.assert_obj_eq(self.call_app(), status='404 Not Found', body=[],
