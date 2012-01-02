@@ -159,7 +159,9 @@ class NanoApplication(object):
                 continue
             url = pattern.pattern[1:-1]
             for name, value in wildcards.items():
-                if not isinstance(value, basestring):
+                if isinstance(value, int):
+                    value = str(value)
+                elif not isinstance(value, basestring):
                     raise TypeError("Wildcard values must be strings "
                                     "(got %r object instead)" % type(value))
                 url, nsubs = re.subn(named_group_re % name, urllib.quote(value), url)

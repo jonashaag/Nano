@@ -74,19 +74,19 @@ class TestRouting(Test):
                        '/%20%C3%A4%C3%B6%C3%9F%C2%AE/')
 
         self.assertRaisesRegexp(
-            TypeError, "Wildcard values must be strings \(got <type 'int'> object instead\)",
-            self.app.build_url, 'c3', a=42
+            TypeError, "Wildcard values must be strings \(got <type 'object'> object instead\)",
+            self.app.build_url, 'c3', a=object()
         )
 
         for view_name, kwargs in [
-            ('c1', {'a': '1'}),
-            ('c3', {'a': '1', 'b': '2'}),
-            ('c3', {'b': '2'}),
-            ('c5', {'a': 'foo', 'b': '123'}),
+            ('c1', {'a': 1}),
+            ('c3', {'a': 1, 'b': 2}),
+            ('c3', {'b': 2}),
+            ('c5', {'a': 'foo', 'b': 123}),
             ('c7', {})
         ]:
             self.assertRaisesRegexp(ValueError, "Wildcard substitutions didn't",
-                                  self.app.build_url, view_name, **kwargs)
+                                    self.app.build_url, view_name, **kwargs)
 
     def test_build_url_with_SCRIPT_NAME(self):
         def callback(env):
