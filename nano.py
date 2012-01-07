@@ -1,8 +1,8 @@
 """
 Nano -- Web Framework in about 100 LOC
 
-Copyright 2010, Jonas Haag <jonas@lophus.org>
-License: 2-clause BSD
+:Copyright: 2010-2011, Jonas Haag <jonas@lophus.org>
+:License: 2-clause BSD
 """
 import os
 import sys
@@ -43,7 +43,7 @@ class HttpError(Exception):
         `body` (optional)
             The body to be sent to the client.
 
-    Example::
+    ::
 
         @app.route('/download/:name:/')
         def download(name):
@@ -134,7 +134,9 @@ class NanoApplication(object):
         wildcards substitutions passed as keyword arguments.
 
         `callback_name` is the name of the route target whose route should be
-        used to generate the URL. Substitution values must be strings. Example::
+        used to generate the URL. Substitution values must be strings or integers.
+
+        ::
 
             @app.route('/:foo:/:bar:/')
             def foobar(foo, bar):
@@ -147,7 +149,7 @@ class NanoApplication(object):
         1. Routes contain nothing but Nano-style wildcards (``:foo:``) and
            named regular expression groups (``(?P<name>pattern)``).
         2. Route targets must be function-like, more precisely, they must have a
-          ``__name__`` attribute that is unique within all route targets.
+           ``__name__`` attribute that is unique within all route targets.
 
         :raises ValueError:
             If the given wildcard substitutions didn't match the route pattern's
